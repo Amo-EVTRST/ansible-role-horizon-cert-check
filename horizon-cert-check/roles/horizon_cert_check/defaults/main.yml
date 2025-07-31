@@ -1,0 +1,5 @@
+---
+horizon_url: "Enter your Horizon URL"
+api_id: "Enter your API id"
+api_key: "Enter your API Key"
+cert_identifier: ""  # Example: DN = 'CN=www.apple.com,.......' or Serial Number = '136e2df6fcadd974b96bcc514df527a1'

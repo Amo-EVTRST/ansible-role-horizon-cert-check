@@ -1,0 +1,7 @@
+---
+
+- name: Check certificate renewal permission via Horizon
+  hosts: localhost
+  gather_facts: no
+  roles:
+    - role: horizon_cert_check

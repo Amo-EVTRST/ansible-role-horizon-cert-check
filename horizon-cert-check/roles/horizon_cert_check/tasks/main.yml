@@ -1,0 +1,77 @@
+---
+
+
+- name: Fail if cert_identifier is not provided
+  fail:
+    msg: "You must provide a value for 'cert_identifier'."
+  when: cert_identifier | length == 0
+
+- name: Determine search query (by DN or serial)
+  set_fact:
+    search_query: >-
+      {% if cert_identifier is search('^CN=') %}
+        dn = "{{ cert_identifier }}"
+      {% else %}
+        serial = "{{ cert_identifier }}"
+      {% endif %}
+
+- name: Search cert by DN or Serial
+  uri:
+    url: "{{ horizon_url }}/api/v1/certificates/search"
+    method: POST
+    headers:
+      X-API-ID: "{{ api_id }}"
+      X-API-KEY: "{{ api_key }}"
+      Content-Type: "application/json"
+      Accept: "application/json"
+    body_format: json
+    body:
+      query: "{{ search_query }}"
+      fields:
+        - _id
+        - dn
+        - serial
+      pageIndex: 1
+      pageSize: 100
+    validate_certs: no
+  register: cert_search_result
+
+- name: Fail if cert not found
+  fail:
+    msg: "Certificate with identifier '{{ cert_identifier }}' not found."
+  when: cert_search_result.json.results | length == 0
+
+- name: Extract cert ID
+  set_fact:
+    cert_id: "{{ cert_search_result.json.results[0]._id }}"
+
+- name: Get full cert info by ID
+  uri:
+    url: "{{ horizon_url }}/api/v1/certificates"
+    method: POST
+    headers:
+      X-API-ID: "{{ api_id }}"
+      X-API-KEY: "{{ api_key }}"
+      Content-Type: "application/json"
+      Accept: "application/json"
+    body_format: json
+    body:
+      - "{{ cert_id }}"
+    validate_certs: no
+  register: cert_info_result
+
+- name: Fail if no detailed cert info returned
+  fail:
+    msg: "No detailed info found for cert ID '{{ cert_id }}'"
+  when: cert_info_result.json | length == 0
+
+- name: Display renew permission
+  debug:
+    msg: >
+      Certificate renew permission is {{
+        (cert_info_result.json[0].permissions.renew
+          if cert_info_result.json is defined and
+            cert_info_result.json|length > 0 and
+              'permissions' in cert_info_result.json[0]
+          else false)
+      }}
